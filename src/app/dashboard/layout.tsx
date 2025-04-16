@@ -1,18 +1,28 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { ClientSidebar } from "@/components/client-sidebar";
 import { ClientHeader } from "@/components/client-header";
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  const router = useRouter();
 
-  if (!session?.user) {
-    redirect("/login");
-  }
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push('/auth/signin');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   return (
     <div className="flex h-screen">

@@ -3,72 +3,139 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
-  FileText,
+  Dumbbell,
   Image,
+  GraduationCap,
+  LineChart,
+  Users,
+  FileText,
   Settings,
-  Building2,
-  Search,
   LogOut,
   MoonStar,
   Sun,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { signIn, signOut, auth } from '@/lib/auth';
+import { auth } from '@/lib/firebase';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [userType, setUserType] = useState<'user' | 'pro' | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    // 사용자 타입 확인
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const userData = userDoc.data();
+        setUserType(userData?.userType || null);
+      } else {
+        setUserType(null);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const isDark = theme === 'dark';
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      router.push('/auth/signin');
+    } catch (error) {
+      console.error('로그아웃 중 오류 발생:', error);
+    }
+  };
 
-  const routes = [
+  const userRoutes = [
     {
-      href: '/',
+      href: '/dashboard/user',
       label: '대시보드',
       icon: LayoutDashboard,
     },
     {
-      href: '/posts',
-      label: '블로그 글',
-      icon: FileText,
+      href: '/dashboard/user/exercise-routines',
+      label: '내 운동 루틴',
+      icon: Dumbbell,
     },
     {
-      href: '/ai-content',
-      label: 'AI 콘텐츠',
-      icon: FileText,
-    },
-    {
-      href: '/ai-image',
-      label: 'AI 이미지',
+      href: '/dashboard/user/exercise-illustrations',
+      label: '운동 일러스트',
       icon: Image,
     },
     {
-      href: '/business',
-      label: '비즈니스',
-      icon: Building2,
+      href: '/dashboard/user/education',
+      label: '교육 자료',
+      icon: GraduationCap,
     },
     {
-      href: '/keyword-analysis',
-      label: '키워드 분석',
-      icon: Search,
+      href: '/dashboard/user/analysis',
+      label: '운동 분석',
+      icon: LineChart,
     },
   ];
+
+  const proRoutes = [
+    {
+      href: '/dashboard/pro',
+      label: '대시보드',
+      icon: LayoutDashboard,
+    },
+    {
+      href: '/dashboard/pro/clients',
+      label: '클라이언트 관리',
+      icon: Users,
+    },
+    {
+      href: '/dashboard/pro/exercise-routines',
+      label: '운동 루틴 관리',
+      icon: Dumbbell,
+    },
+    {
+      href: '/dashboard/pro/ai-images',
+      label: 'AI 이미지 생성',
+      icon: Image,
+    },
+    {
+      href: '/dashboard/pro/illustrations',
+      label: '운동 일러스트 관리',
+      icon: Image,
+    },
+    {
+      href: '/dashboard/pro/education',
+      label: '교육 자료 관리',
+      icon: GraduationCap,
+    },
+    {
+      href: '/dashboard/pro/education-create',
+      label: '교육 자료 생성',
+      icon: FileText,
+    },
+    {
+      href: '/dashboard/pro/analysis',
+      label: '운동 분석',
+      icon: LineChart,
+    },
+  ];
+
+  const routes = userType === 'pro' ? proRoutes : userRoutes;
 
   return (
     <aside className="flex flex-col h-full bg-card border-r border-border w-64 overflow-y-auto">
       <div className="p-4 border-b border-border">
-        <Link href="/" className="flex items-center">
+        <Link href={`/dashboard/${userType}`} className="flex items-center">
           <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center">
-            <span className="text-white font-bold">D</span>
+            <span className="text-white font-bold">M</span>
           </div>
-          <h1 className="text-xl font-bold ml-2">Draft AI</h1>
+          <h1 className="text-xl font-bold ml-2">Motion AI</h1>
         </Link>
       </div>
 
@@ -99,9 +166,9 @@ export function Sidebar() {
             variant="ghost"
             size="sm"
             className="w-full justify-start"
-            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           >
-            {mounted && isDark ? (
+            {mounted && theme === 'dark' ? (
               <>
                 <Sun className="h-4 w-4 mr-2" />
                 라이트 모드
@@ -119,7 +186,7 @@ export function Sidebar() {
           variant="ghost"
           size="sm"
           className="w-full justify-start text-muted-foreground"
-          onClick={() => signOut()}
+          onClick={handleSignOut}
         >
           <LogOut className="h-4 w-4 mr-2" />
           로그아웃
